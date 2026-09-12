@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>arc.sys</title>
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="icon" type="image/png" href="logo.png">
+<style>
+  :root{
+    --bg:#0c0c0d;
+    --border:#232326;
+    --border-soft:#1a1a1c;
+    --text:#e6e6e6;
+    --dim:#727277;
+    --accent:#3ecf7e;
+    --track:#18181a;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--mono);}
+  body{
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    min-height:100dvh; /* better mobile viewport handling */
+    padding:10px;
+    padding-bottom:calc(10px + env(safe-area-inset-bottom));
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:center; /* <-- vertical centering, was missing */
+    font-size:13px;
+  }
+  .wrap{ width:100%; max-width:640px; }
+
+  .topbar{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:4px 4px 10px;
+    color:var(--dim); font-size:11px;
+  }
+  .topbar .clock{ font-variant-numeric:tabular-nums; }
+
+  .tablewrap{
+    border:1px solid var(--border);
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .grid-row{
+    display:grid;
+    grid-template-columns: 20px 1.15fr 1.85fr 78px;
+    gap:0;
+    align-items:center;
+    min-width:340px;
+    padding:0 8px;
+  }
+
+  .thead{
+    color:var(--dim); font-size:10.5px;
+    padding-top:8px; padding-bottom:8px;
+    border-bottom:1px solid var(--border);
+  }
+  .thead span{
+    border-right:1px solid var(--border);
+    padding-right:8px;
+  }
+  .thead span:last-child{ border-right:none; text-align:right; padding-right:2px; }
+  .thead span:not(:first-child){ padding-left:8px; }
+
+  .row{
+    padding-top:9px; padding-bottom:9px;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .row:last-child{ border-bottom:none; }
+  .row > *:not(:first-child){ padding-left:8px; }
+
+  .idx{ color:var(--dim); font-size:11px; }
+  .fname{
+    color:var(--text); font-size:12px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .barwrap{
+    height:21px; background:var(--track);
+    border:1px solid var(--border);
+    overflow:hidden; position:relative;
+  }
+  .barfill{
+    /* flush to the left edge, no border/shadow artifacts at 0 width */
+    position:absolute;
+    top:0; left:0; bottom:0;
+    background:var(--accent);
+    width:0%;
+    border:none;
+    box-shadow:none;
+    transition:width .3s linear;
+  }
+  .barlabel{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:10px; letter-spacing:0.02em;
+    color:var(--text);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+    white-space:nowrap;
+  }
+
+  .downloaded{
+    text-align:right; font-size:11px; color:var(--dim);
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .downloaded b{ color:var(--text); font-weight:600; }
+
+  @media (min-width:601px){
+    body{ font-size:14px; padding:24px; }
+    .grid-row{ grid-template-columns: 24px 1.15fr 1.85fr 110px; }
+    .barwrap{ height:24px; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .barfill{ transition:none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <span>arc.sys</span>
+    <span class="clock" id="uptime">0d 00:00:00</span>
+  </div>
+
+  <div class="tablewrap">
+    <div class="grid-row thead">
+      <span>#</span><span>Name</span><span>Status</span><span>Downloaded</span>
+    </div>
+
+    <div class="grid-row row">
+      <span class="idx">1</span>
+      <span class="fname">shredded.pkg</span>
+      <div class="barwrap"><div class="barfill" id="kcal-bar"></div><div class="barlabel" id="kcal-status">Downloading</div></div>
+      <span class="downloaded"><b id="kcal-num">0</b> kcal</span>
+    </div>
+
+    <div class="grid-row row">
+      <span class="idx">2</span>
+      <span class="fname">balance.dat</span>
+      <div class="barwrap"><div class="barfill" id="hack-bar"></div><div class="barlabel" id="hack-status">Downloading</div></div>
+      <span class="downloaded">$<b id="hack-num">0</b></span>
+    </div>
+
+    <div class="grid-row row">
+      <span class="idx">3</span>
+      <span class="fname">followers.db</span>
+      <div class="barwrap"><div class="barfill" id="soc-bar"></div><div class="barlabel" id="soc-status">Downloading</div></div>
+      <span class="downloaded"><b id="soc-num">0</b></span>
+    </div>
+
+    <div class="grid-row row">
+      <span class="idx">4</span>
+      <span class="fname">vocab.dic</span>
+      <div class="barwrap"><div class="barfill" id="voc-bar"></div><div class="barlabel" id="voc-status">Downloading</div></div>
+      <span class="downloaded"><b id="voc-num">0</b></span>
+    </div>
+
+    <div class="grid-row row">
+      <span class="idx">5</span>
+      <span class="fname">clean.sys</span>
+      <div class="barwrap"><div class="barfill" style="width:100%"></div><div class="barlabel">Seeding</div></div>
+      <span class="downloaded" id="fw-num">0d 00:00:00</span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  const START = new Date('2026-09-12T00:00:00');
+  const ARC_SECONDS = 78*86400;
+
+  const KCAL_TOTAL = 84700;
+  const HACK_TOTAL = 350000 * (78/365); // pace-adjusted to the 78-day arc
+  const SOC_TOTAL  = 1000000;
+  const VOC_TOTAL  = 3360*78;
+
+  const KCAL_PER_SEC = KCAL_TOTAL/ARC_SECONDS;
+  const HACK_PER_SEC = HACK_TOTAL/ARC_SECONDS;
+  const SOC_PER_SEC  = SOC_TOTAL/ARC_SECONDS;
+  const VOC_PER_SEC  = VOC_TOTAL/ARC_SECONDS;
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function fmtInt(n){ return Math.floor(n).toLocaleString('en-US'); }
+
+  function setRow(prefix, val, total){
+    document.getElementById(prefix+'-num').textContent = fmtInt(val);
+    let pct = Math.min(val/total*100, 100);
+    // snap tiny sub-pixel percentages to exactly 0 so no stray hairline
+    // shows at the left edge before there's real progress to show
+    if (pct < 0.5) pct = 0;
+    document.getElementById(prefix+'-bar').style.width = pct + '%';
+    const statusEl = document.getElementById(prefix+'-status');
+    statusEl.textContent = pct >= 100 ? 'Seeding' : `Downloading  ${Math.round(pct)}%`;
+  }
+
+  function tick(){
+    const now = new Date();
+    const elapsedSec = Math.max(0,(now - START)/1000);
+
+    const d = Math.floor(elapsedSec/86400);
+    const h = Math.floor((elapsedSec%86400)/3600);
+    const m = Math.floor((elapsedSec%3600)/60);
+    const s = Math.floor(elapsedSec%60);
+    const uptimeStr = `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
+    document.getElementById('uptime').textContent = uptimeStr;
+    document.getElementById('fw-num').textContent = uptimeStr;
+
+    setRow('kcal', elapsedSec*KCAL_PER_SEC, KCAL_TOTAL);
+    setRow('hack', elapsedSec*HACK_PER_SEC, HACK_TOTAL);
+    setRow('soc',  elapsedSec*SOC_PER_SEC,  SOC_TOTAL);
+    setRow('voc',  elapsedSec*VOC_PER_SEC,  VOC_TOTAL);
+  }
+
+  tick();
+  setInterval(tick, 250);
+})();
+</script>
+</body>
+</html>
