@@ -152,19 +152,19 @@
       <span class="idx">1</span>
       <span class="fname">shredd.pkg</span>
       <div class="barwrap"><div class="barfill" id="kcal-bar"></div><div class="barlabel" id="kcal-status">Downloading</div></div>
-      <span class="downloaded"><b id="kcal-num">0</b> kcal</span>
+      <span class="downloaded"><b id="kcal-num">0</b> kg</span>
     </div>
 
     <div class="grid-row row">
       <span class="idx">2</span>
-      <span class="fname">balance.dat</span>
+      <span class="fname">skills.pwn</span>
       <div class="barwrap"><div class="barfill" id="hack-bar"></div><div class="barlabel" id="hack-status">Downloading</div></div>
-      <span class="downloaded">$<b id="hack-num">0</b></span>
+      <span class="downloaded"><b id="hack-num">0:00</b> hrs</span>
     </div>
 
     <div class="grid-row row">
       <span class="idx">3</span>
-      <span class="fname">follow.db</span>
+      <span class="fname">posted.vid</span>
       <div class="barwrap"><div class="barfill" id="soc-bar"></div><div class="barlabel" id="soc-status">Downloading</div></div>
       <span class="downloaded"><b id="soc-num">0</b></span>
     </div>
@@ -191,27 +191,54 @@
   const START = new Date('2026-09-15T00:00:00');
   const ARC_SECONDS = 77*86400;
 
-  const KCAL_TOTAL = 84700;
-  const HACK_TOTAL = 10000;
-  const SOC_TOTAL  = 10000;
-  const VOC_TOTAL  = 3360*77;
+  // shredd.pkg -- weight goal: 72.45kg -> 61kg, Sep 15 00:00 to Dec 1 23:59
+  const WT_START = 72.45;
+  const WT_END   = 61;
+  const WT_END_DATE = new Date('2026-12-01T23:59:00');
+  const WT_SECONDS = (WT_END_DATE - START)/1000;
+  const WT_PER_SEC = (WT_START - WT_END)/WT_SECONDS;
 
-  const KCAL_PER_SEC = KCAL_TOTAL/ARC_SECONDS;
-  const HACK_PER_SEC = HACK_TOTAL/ARC_SECONDS;
-  const SOC_PER_SEC  = SOC_TOTAL/ARC_SECONDS;
+  // skills.pwn -- +2 hrs/day of hacking practice, accrued continuously through each day
+  const SKILL_HOURS_PER_DAY = 2;
+  const SKILL_TOTAL = SKILL_HOURS_PER_DAY*77;
+  const SKILL_PER_SEC = SKILL_HOURS_PER_DAY/86400;
+
+  // posted.vid -- +30 videos/day, accrued continuously through each day
+  const POST_PER_DAY = 30;
+  const POST_TOTAL = POST_PER_DAY*77;
+  const POST_PER_SEC = POST_PER_DAY/86400;
+
+  const VOC_TOTAL = 3360*77;
   const VOC_PER_SEC  = VOC_TOTAL/ARC_SECONDS;
 
   function pad(n){ return String(n).padStart(2,'0'); }
   function fmtInt(n){ return Math.floor(n).toLocaleString('en-US'); }
+  function fmtHours(n){
+    const hh = Math.floor(n);
+    const mm = Math.floor((n-hh)*60);
+    return `${hh}:${pad(mm)}`;
+  }
 
-  function setRow(prefix, val, total){
-    document.getElementById(prefix+'-num').textContent = fmtInt(val);
+  function setRow(prefix, val, total, fmt){
+    fmt = fmt || fmtInt;
+    document.getElementById(prefix+'-num').textContent = fmt(val);
     let pct = Math.min(val/total*100, 100);
     // snap tiny sub-pixel percentages to exactly 0 so no stray hairline
     // shows at the left edge before there's real progress to show
     if (pct < 0.5) pct = 0;
     document.getElementById(prefix+'-bar').style.width = pct + '%';
     const statusEl = document.getElementById(prefix+'-status');
+    statusEl.textContent = pct >= 100 ? 'Seeding' : `Downloading  ${Math.round(pct)}%`;
+  }
+
+  function setWeightRow(elapsedSec){
+    const frac = Math.min(elapsedSec/WT_SECONDS, 1);
+    const current = WT_START - (WT_START-WT_END)*frac;
+    document.getElementById('kcal-num').textContent = current.toFixed(2);
+    let pct = frac*100;
+    if (pct < 0.5) pct = 0;
+    document.getElementById('kcal-bar').style.width = pct + '%';
+    const statusEl = document.getElementById('kcal-status');
     statusEl.textContent = pct >= 100 ? 'Seeding' : `Downloading  ${Math.round(pct)}%`;
   }
 
@@ -227,10 +254,10 @@
     document.getElementById('uptime').textContent = uptimeStr;
     document.getElementById('fw-num').textContent = uptimeStr;
 
-    setRow('kcal', elapsedSec*KCAL_PER_SEC, KCAL_TOTAL);
-    setRow('hack', elapsedSec*HACK_PER_SEC, HACK_TOTAL);
-    setRow('soc',  elapsedSec*SOC_PER_SEC,  SOC_TOTAL);
-    setRow('voc',  elapsedSec*VOC_PER_SEC,  VOC_TOTAL);
+    setWeightRow(elapsedSec);
+    setRow('hack', elapsedSec*SKILL_PER_SEC, SKILL_TOTAL, fmtHours);
+    setRow('soc',  elapsedSec*POST_PER_SEC,  POST_TOTAL);
+    setRow('voc',  elapsedSec*VOC_PER_SEC,   VOC_TOTAL);
   }
 
   tick();
