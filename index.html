@@ -52,6 +52,23 @@
     color:var(--text);
   }
 
+  .viz-btn{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--dim);
+    background:none;
+    border:none;
+    border-bottom:1px solid var(--border);
+    padding:2px 0 4px;
+    margin-top:10px;
+    cursor:pointer;
+    transition:color .15s linear, border-color .15s linear;
+  }
+  .viz-btn:hover{ color:var(--text); border-color:var(--text); }
+  .viz-btn.active{ color:var(--accent); border-color:var(--accent); }
+
   .tablewrap{
     background:#ffffff;
     border:1px solid var(--border);
@@ -141,6 +158,7 @@
   <div class="topbar">
     <span class="label">arc.sys</span>
     <span class="clock" id="uptime">0d 00:00:00</span>
+    <button class="viz-btn" id="viz-btn">Visualize</button>
   </div>
 
   <div class="tablewrap">
@@ -189,27 +207,29 @@
 <script>
 (function(){
   const START = new Date('2026-09-15T00:00:00');
-  const ARC_SECONDS = 77*86400;
 
   // shredd.pkg -- weight goal: 72.45kg -> 61kg, Sep 15 00:00 to Dec 1 23:59
   // (stays continuous through the day, unlike the three below)
+  // This end date is the single source of truth for the arc's true length
+  // (~78 days) -- everything else derives from it so nothing finishes early.
   const WT_START = 72.45;
   const WT_END   = 61;
-  const WT_END_DATE = new Date('2026-12-01T23:59:00');
+  const WT_END_DATE = new Date('2026-12-02T00:00:00');
   const WT_SECONDS = (WT_END_DATE - START)/1000;
-  const WT_PER_SEC = (WT_START - WT_END)/WT_SECONDS;
+  const ARC_SECONDS = WT_SECONDS;
+  const ARC_DAYS = Math.ceil(ARC_SECONDS/86400); // 78
 
   // skills.pwn -- +2 hrs/day, credited only once the day completes
   const SKILL_HOURS_PER_DAY = 2;
-  const SKILL_TOTAL = SKILL_HOURS_PER_DAY*77;
+  const SKILL_TOTAL = SKILL_HOURS_PER_DAY*ARC_DAYS;
 
   // posted.vid -- +30 videos/day, credited only once the day completes
   const POST_PER_DAY = 30;
-  const POST_TOTAL = POST_PER_DAY*77;
+  const POST_TOTAL = POST_PER_DAY*ARC_DAYS;
 
   // vocab.dic -- +3360 words/day, credited only once the day completes
   const VOC_PER_DAY = 3360;
-  const VOC_TOTAL = VOC_PER_DAY*77;
+  const VOC_TOTAL = VOC_PER_DAY*ARC_DAYS;
 
   function pad(n){ return String(n).padStart(2,'0'); }
   function fmtInt(n){ return Math.floor(n).toLocaleString('en-US'); }
@@ -238,9 +258,38 @@
     statusEl.textContent = pct >= 100 ? 'Seeding' : `Downloading  ${pct.toFixed(1)}%`;
   }
 
+  // --- VISUALIZE MODE ---
+  // Compresses the full arc into VIZ_DURATION_SEC of real time so
+  // every bar sweeps 0% -> 100%. Runs once and freezes at 100% (no loop)
+  // until the button is pressed again to reset back to real time.
+  let vizMode = false;
+  let vizStartReal = 0;
+  const VIZ_DURATION_SEC = 20;
+
+  const vizBtn = document.getElementById('viz-btn');
+  vizBtn.addEventListener('click', function(){
+    vizMode = !vizMode;
+    if (vizMode){
+      vizStartReal = performance.now();
+      vizBtn.textContent = 'Reset';
+      vizBtn.classList.add('active');
+    } else {
+      vizBtn.textContent = 'Visualize';
+      vizBtn.classList.remove('active');
+    }
+  });
+
   function tick(){
     const now = new Date();
-    const elapsedSec = Math.max(0,(now - START)/1000);
+    let elapsedSec;
+
+    if (vizMode){
+      const realElapsed = (performance.now() - vizStartReal)/1000;
+      const frac = Math.min(realElapsed/VIZ_DURATION_SEC, 1);
+      elapsedSec = frac * ARC_SECONDS; // freezes at ARC_SECONDS once frac hits 1
+    } else {
+      elapsedSec = Math.max(0,(now - START)/1000);
+    }
 
     const d = Math.floor(elapsedSec/86400);
     const h = Math.floor((elapsedSec%86400)/3600);
@@ -250,9 +299,11 @@
     document.getElementById('uptime').textContent = uptimeStr;
     document.getElementById('fw-num').textContent = uptimeStr;
 
-    // d = number of FULLY completed days; these three only step up
-    // once a day finishes, they stay flat while the day is in progress
-    const completedDays = Math.min(d, 77);
+    // d = number of FULLY completed 86400s days; these three only step up
+    // once a day finishes. The arc's last day is only 23:59 long though
+    // (ends at Dec 1 23:59, not midnight), so it would never floor() up
+    // to a full day -- credit it as complete once the arc itself ends.
+    const completedDays = elapsedSec >= ARC_SECONDS ? ARC_DAYS : Math.min(d, ARC_DAYS);
 
     setWeightRow(elapsedSec);
     setRow('hack', completedDays*SKILL_HOURS_PER_DAY, SKILL_TOTAL, fmtHours);
