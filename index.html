@@ -192,24 +192,24 @@
   const ARC_SECONDS = 77*86400;
 
   // shredd.pkg -- weight goal: 72.45kg -> 61kg, Sep 15 00:00 to Dec 1 23:59
+  // (stays continuous through the day, unlike the three below)
   const WT_START = 72.45;
   const WT_END   = 61;
   const WT_END_DATE = new Date('2026-12-01T23:59:00');
   const WT_SECONDS = (WT_END_DATE - START)/1000;
   const WT_PER_SEC = (WT_START - WT_END)/WT_SECONDS;
 
-  // skills.pwn -- +2 hrs/day of hacking practice, accrued continuously through each day
+  // skills.pwn -- +2 hrs/day, credited only once the day completes
   const SKILL_HOURS_PER_DAY = 2;
   const SKILL_TOTAL = SKILL_HOURS_PER_DAY*77;
-  const SKILL_PER_SEC = SKILL_HOURS_PER_DAY/86400;
 
-  // posted.vid -- +30 videos/day, accrued continuously through each day
+  // posted.vid -- +30 videos/day, credited only once the day completes
   const POST_PER_DAY = 30;
   const POST_TOTAL = POST_PER_DAY*77;
-  const POST_PER_SEC = POST_PER_DAY/86400;
 
-  const VOC_TOTAL = 3360*77;
-  const VOC_PER_SEC  = VOC_TOTAL/ARC_SECONDS;
+  // vocab.dic -- +3360 words/day, credited only once the day completes
+  const VOC_PER_DAY = 3360;
+  const VOC_TOTAL = VOC_PER_DAY*77;
 
   function pad(n){ return String(n).padStart(2,'0'); }
   function fmtInt(n){ return Math.floor(n).toLocaleString('en-US'); }
@@ -254,10 +254,14 @@
     document.getElementById('uptime').textContent = uptimeStr;
     document.getElementById('fw-num').textContent = uptimeStr;
 
+    // d = number of FULLY completed days; these three only step up
+    // once a day finishes, they stay flat while the day is in progress
+    const completedDays = Math.min(d, 77);
+
     setWeightRow(elapsedSec);
-    setRow('hack', elapsedSec*SKILL_PER_SEC, SKILL_TOTAL, fmtHours);
-    setRow('soc',  elapsedSec*POST_PER_SEC,  POST_TOTAL);
-    setRow('voc',  elapsedSec*VOC_PER_SEC,   VOC_TOTAL);
+    setRow('hack', completedDays*SKILL_HOURS_PER_DAY, SKILL_TOTAL, fmtHours);
+    setRow('soc',  completedDays*POST_PER_DAY,  POST_TOTAL);
+    setRow('voc',  completedDays*VOC_PER_DAY,   VOC_TOTAL);
   }
 
   tick();
